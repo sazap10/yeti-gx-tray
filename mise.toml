@@ -30,18 +30,24 @@ description = "Install binary + autostart entry into $HOME (user-run only). YETI
 depends = ["build"]
 # The autostart entry gets the binary's absolute path: Plasma launches autostart entries as
 # systemd user units, whose PATH does not include ~/.local/bin.
-run = """
+# The path goes into a quoted Exec= argument, escaped per the Desktop Entry spec: \ " ` $ get
+# a backslash and % becomes %%, then every backslash is doubled for the string-value level.
+# awk takes the finished line from the environment, so nothing in the path is interpreted.
+run = '''
 set -eu
 bin="$HOME/.local/bin/yeti-gx-tray"
 autostart="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
 fg="${YETI_FG:-}"
-fg="${fg#\\#}"
+fg="${fg#\#}"
 case "$fg" in
   ''|[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) ;;
   *) echo "YETI_FG must be #rrggbb, got '$YETI_FG'" >&2; exit 1 ;;
 esac
+arg=$(printf '%s' "$bin" | sed -e 's/[\\"`$]/\\&/g' -e 's/\\/\\\\/g' -e 's/%/%%/g')
 install -Dm755 target/release/yeti-gx-tray "$bin"
 mkdir -p "$autostart"
-sed "s|^Exec=.*|Exec=\\"$bin\\"${fg:+ --fg $fg}|" yeti-gx-tray.desktop > "$autostart/yeti-gx-tray.desktop"
+EXEC_LINE="Exec=\"$arg\"${fg:+ --fg $fg}" \
+  awk '/^Exec=/ { print ENVIRON["EXEC_LINE"]; next } { print }' yeti-gx-tray.desktop \
+  > "$autostart/yeti-gx-tray.desktop"
 echo "installed $bin and $autostart/yeti-gx-tray.desktop"
-"""
+'''
