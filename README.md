@@ -7,6 +7,10 @@ The mic's real preamp gain is invisible to Linux audio tools (ALSA only exposes 
 0–12 digital trim). It is reachable over Logitech HID++ 2.0 on the mic's vendor hidraw
 interface; this tool talks to that directly.
 
+![Tray icon states at 22 px, on a light and a dark panel: resting, resting with Smart Audio Lock, muted, disconnected](docs/icon-states.png)
+
+*The icon at 22 px, enlarged. Top: light panel, bottom: dark panel.*
+
 - **Icon**: the gain number, drawn to stay legible at 22 px. Every state is distinguishable
   without colour:
   - unmuted: bare digits in the panel's text colour, no tile (the quiet resting state);
@@ -15,7 +19,8 @@ interface; this tool talks to that directly.
   - disconnected: two dimmed dashes.
 
   A bar under the digits means Smart Audio Lock is on.
-- **Tooltip**: `Yeti GX — gain 100, unmuted, Smart Lock off`.
+- **Tooltip**: `Yeti GX — gain 100, unmuted, Smart Lock off` (the tooltip shortens Smart
+  Audio Lock to "Smart Lock").
 - **Left click**: toggle hardware mute. **Scroll**: gain ±5 (0–100).
 - **Menu**: Mute, Smart Audio Lock, Raise gain (+5), Lower gain (-5), Quit. Everything the
   mouse gestures do is also available as a menu entry, and the menu works from the keyboard
@@ -23,10 +28,14 @@ interface; this tool talks to that directly.
 - Recovers automatically after unplug/replug.
 
 No Qt, no hidapi: StatusNotifierItem over D-Bus via [`ksni`](https://crates.io/crates/ksni),
-and plain `std::fs::File` on the hidraw node. About 8 MB RSS, 0 CPU when idle.
+and plain `std::fs::File` on the hidraw node. Under 10 MB RSS, 0 CPU when idle.
 
 ## Requirements
 
+- **Hardware**: Logitech Yeti GX, USB `046d:0afc`. Only firmware 2.00 has been verified. The
+  feature index is discovered at runtime, so another firmware is most likely to differ in
+  field behaviour (values, notifications) rather than fail to connect; `--listen` shows what
+  it does.
 - Linux with a StatusNotifierItem host (Plasma's tray).
 - Read/write access to the mic's `/dev/hidrawN`. On a seat-managed desktop this is already
   granted by the `uaccess` udev tag; no udev rule or sudo is needed (verified on CachyOS /
@@ -35,46 +44,92 @@ and plain `std::fs::File` on the hidraw node. About 8 MB RSS, 0 CPU when idle.
 - Rust toolchain (`cargo`) to build. [mise](https://mise.jdx.dev) drives the tasks; plain
   `cargo` works too.
 
-## Build and run
+## Install
+
+Nothing is installed automatically. Build, check and run from the repo first:
 
 ```sh
 mise run check      # clippy -D warnings, tests, release build
 mise run run        # build + run the tray
-mise run listen     # build + print raw HID++ reports (see below)
 ```
 
 Without mise: `cargo build --release && target/release/yeti-gx-tray`.
 
-## Install
-
-Nothing is installed automatically. To install for your user and autostart on login:
+To install for your user and start on login:
 
 ```sh
-mise run install
-# equivalent to:
-#   install -Dm755 target/release/yeti-gx-tray ~/.local/bin/yeti-gx-tray
-#   install -Dm644 yeti-gx-tray.desktop ~/.config/autostart/yeti-gx-tray.desktop
+mise run install                    # digit colour follows the Plasma colour scheme
+YETI_FG='#4c4f69' mise run install  # or pin the digit colour (see Usage)
 ```
 
-`~/.local/bin` must be on the session `PATH` for the autostart entry's `Exec=yeti-gx-tray`;
-otherwise put the absolute path in `Exec=`. To uninstall, delete those two files.
+This copies the binary to `~/.local/bin/yeti-gx-tray` and writes
+`~/.config/autostart/yeti-gx-tray.desktop` with the binary's absolute path in `Exec=`.
+Plasma starts autostart entries as systemd user units, whose `PATH` does not include
+`~/.local/bin`, so a bare `Exec=yeti-gx-tray` would not be found.
 
-## `--listen`
+To uninstall, choose Quit in the tray menu (or `pkill yeti-gx-tray`), then delete those two
+files.
 
-`yeti-gx-tray --listen` prints every raw report from the mic with a timestamp and decoded
-meaning, and sends nothing except the one documented getFeature request needed to learn the
-feature index. It can run alongside the tray (hidraw delivers every input report to every
-open file descriptor).
+## Usage
 
-### Notification behaviour (verified on cepheus, firmware 2.00)
+```
+yeti-gx-tray              run the tray icon
+yeti-gx-tray --fg #rrggbb run the tray icon with a fixed digit colour
+yeti-gx-tray --listen     print every raw HID++ report from the mic with its meaning
+yeti-gx-tray --help
+```
 
-Observed with `--listen` while using the tray, the knob and the hardware buttons:
+The digit colour follows the Plasma colour scheme: `ForegroundNormal` in `[Colors:Window]`
+of `~/.config/kdeglobals`, re-read within about 2 s of a scheme change. Use `--fg` (the `#`
+is optional) when your panel's colour differs from the scheme's window colour. For an
+installed copy, reinstall with `YETI_FG` or add `--fg rrggbb` to `Exec=` in the autostart
+file.
+
+`--listen` is a debugging aid; see [`--listen` and notifications](#--listen-and-notifications).
+
+## Troubleshooting
+
+Run `target/release/yeti-gx-tray` in a terminal to see its messages. For the autostarted copy:
+`journalctl --user -u 'app-yeti\x2dgx\x2dtray@autostart.service'`.
+
+- **No icon appears.** The program waits for a tray host rather than exiting, so there may be
+  no error. Check that one is running:
+  `busctl --user status org.kde.StatusNotifierWatcher`.
+- **`connect failed: Permission denied (os error 13)`, repeated every 2 s.** Your user can't
+  open the hidraw node. Find it with
+  `grep -l 046D:00000AFC /sys/class/hidraw/*/device/uevent`; `getfacl /dev/hidrawN` should
+  list your user with `rw-`. If it doesn't, the `uaccess` tag is missing (for example over
+  SSH, or without a seat-managed session).
+- **The icon stays on two dashes.** The mic isn't found: it is unplugged, or its `HID_ID`
+  differs from the one above (check the `uevent` files).
+- **Digits are hard to read against the panel.** Pin the colour with `--fg` (see Usage).
+
+## Limitations
+
+- Multiple instances would show multiple icons; there is no single-instance guard.
+- Scroll direction assumes Plasma reports wheel-up as a positive delta.
+- The digit colour assumes the panel background is the scheme's window colour. If it isn't
+  (for example a dark Plasma theme with a light scheme), or `kdeglobals` is unreadable and the
+  fallback `#eff0f1` (Breeze Dark text) lands on a light panel, the digits can be illegible.
+  Use `--fg`.
+- The mic ignores a Smart Audio Lock change made while muted: it reads back changed, then
+  reverts on unmute (observed on firmware 2.00). The menu entry is therefore disabled while
+  muted. Gain changes made while muted do persist.
+
+## `--listen` and notifications
+
+`yeti-gx-tray --listen` (or `mise run listen`) prints every raw report from the mic with a
+timestamp and decoded meaning, and sends nothing except the one documented getFeature request
+needed to learn the feature index. It can run alongside the tray (hidraw delivers every input
+report to every open file descriptor).
+
+Observed on cepheus, firmware 2.00, while using the tray, the knob and the hardware buttons:
 
 | Action | Notification? |
 |---|---|
 | Turn the knob | **Yes**: `11 ff 0d 20 00 01 <gain>` per step, value = new gain |
 | Press the hardware mute button | **Yes**: `... 20 00 00 <0\|1>` (0 = muted, 1 = unmuted) |
-| Press the hardware Smart Lock button | **Yes**: `... 20 00 05 <0\|1>` |
+| Press the hardware Smart Audio Lock button | **Yes**: `... 20 00 05 <0\|1>` |
 | Software write (tray click / scroll / menu) | **No**: only the write reply `... 3d 00 <field> <value>` |
 
 So hardware changes show up on the icon almost instantly, and software writes are picked up
@@ -109,8 +164,8 @@ byte 4+ params
 
 Only these requests are ever sent. Replies are matched by feature index + function + sw id
 (reads use sw id `0x0C`, writes `0x0D`); everything else is ignored. Notifications are
-`11 ff <idx> 20 00 <type> <value>` with type `0x00` mute, `0x01` gain, `0x05` Smart Lock.
-Errors are `10 ff ff <feat> <func|sw> <code> 00`.
+`11 ff <idx> 20 00 <type> <value>` with type `0x00` mute, `0x01` gain, `0x05` Smart Audio
+Lock. Errors are `10 ff ff <feat> <func|sw> <code> 00`.
 
 Protocol reverse-engineered by:
 
@@ -123,25 +178,17 @@ One worker thread owns the device. A reader thread per open device blocks in `po
 the hidraw fd (1 s wake-up only to notice shutdown) and forwards reports over a channel; the
 worker also receives tray commands on the same channel. Any notification marks the state
 dirty and one burst-coalesced re-read of all three fields follows. On read error the icon
-turns grey and the worker rescans `/sys/class/hidraw` every 2 s, re-discovering the feature
-index on reconnect.
+switches to the disconnected dashes and the worker rescans `/sys/class/hidraw` every 2 s,
+re-discovering the feature index on reconnect.
 
 Tray callbacks only enqueue commands, so the D-Bus thread never blocks on the device.
 
 The icon is rendered in software (`src/icon.rs`) at 16, 22, 24, 32, 48 and 64 px with a 3x5
-bitmap font; no image or font dependency. A 2 s stat of `kdeglobals` in a separate thread
-repaints the icon when the Plasma colour scheme changes.
+bitmap font; no image or font dependency. Unless `--fg` is given, a 2 s stat of `kdeglobals`
+in a separate thread repaints the icon when the Plasma colour scheme changes.
 
-## Limitations
+Further docs in this repo:
 
-- Multiple instances would show multiple icons; there is no single-instance guard.
-- Scroll direction assumes Plasma reports wheel-up as a positive delta.
-- The digit colour is the `ForegroundNormal` of `[Colors:Window]` in `~/.config/kdeglobals`
-  (re-read within about 2 s of that file changing; checked by swapping the colour in a
-  scratch config). That assumes the panel background is the scheme's window colour. If your
-  panel differs (for example a dark Plasma theme with a light scheme), or the file is
-  unreadable and the fallback `#eff0f1` (Breeze Dark text) lands on a light panel, pin the
-  colour: `yeti-gx-tray --fg '#4c4f69'`. In `yeti-gx-tray.desktop` put it in `Exec=`.
-- The mic ignores a Smart Audio Lock change made while muted: it reads back changed, then
-  reverts on unmute (observed on firmware 2.00). The menu entry is therefore disabled while
-  muted. Gain changes made while muted do persist.
+- [`PLAN.md`](PLAN.md): the original spec and acceptance criteria.
+- [`PRODUCT.md`](PRODUCT.md): who the icon is for and the principles behind it.
+- [`DESIGN.md`](DESIGN.md): the icon's visual system (colours, digit font, states, rules).

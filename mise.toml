@@ -26,9 +26,17 @@ depends = ["build"]
 run = "target/release/yeti-gx-tray --listen"
 
 [tasks.install]
-description = "Install binary + autostart entry into $HOME (user-run only)"
+description = "Install binary + autostart entry into $HOME (user-run only). YETI_FG=#rrggbb pins the digit colour."
 depends = ["build"]
+# The autostart entry gets the binary's absolute path: Plasma launches autostart entries as
+# systemd user units, whose PATH does not include ~/.local/bin.
 run = """
-install -Dm755 target/release/yeti-gx-tray ~/.local/bin/yeti-gx-tray
-install -Dm644 yeti-gx-tray.desktop ~/.config/autostart/yeti-gx-tray.desktop
+set -eu
+bin="$HOME/.local/bin/yeti-gx-tray"
+autostart="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+fg="${YETI_FG:-}"
+install -Dm755 target/release/yeti-gx-tray "$bin"
+mkdir -p "$autostart"
+sed "s|^Exec=.*|Exec=\\"$bin\\"${fg:+ --fg ${fg#\\#}}|" yeti-gx-tray.desktop > "$autostart/yeti-gx-tray.desktop"
+echo "installed $bin and $autostart/yeti-gx-tray.desktop"
 """
