@@ -167,6 +167,9 @@ impl ksni::Tray for YetiTray {
 /// `fg_override` pins the icon's ink colour; otherwise it follows the Plasma colour scheme.
 fn run_tray(fg_override: Option<[u8; 3]>) -> Result<(), String> {
     let (tx, rx) = mpsc::channel();
+    // Take the scheme file's mtime before reading the colour, so a scheme change while the
+    // tray registers (which can block on D-Bus) still differs from the watcher's baseline.
+    let theme_seen = theme::modified();
     let handle = YetiTray {
         mic: None,
         fg: fg_override.unwrap_or_else(theme::foreground),
@@ -185,7 +188,7 @@ fn run_tray(fg_override: Option<[u8; 3]>) -> Result<(), String> {
         thread::Builder::new()
             .name("theme-watch".into())
             .spawn(move || {
-                let mut seen = theme::modified();
+                let mut seen = theme_seen;
                 loop {
                     thread::sleep(Duration::from_secs(2));
                     let now = theme::modified();
