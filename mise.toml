@@ -1,0 +1,34 @@
+# Rust itself comes from pacman (cargo/rustc already installed); mise drives the workflow.
+[tasks.build]
+description = "Release build"
+run = "cargo build --release"
+
+[tasks.test]
+description = "Unit tests"
+run = "cargo test"
+
+[tasks.lint]
+description = "Clippy, warnings are errors"
+run = "cargo clippy --all-targets -- -D warnings"
+
+[tasks.check]
+description = "Lint + test + release build"
+depends = ["lint", "test", "build"]
+
+[tasks.run]
+description = "Run the tray from the release build"
+depends = ["build"]
+run = "target/release/yeti-gx-tray"
+
+[tasks.listen]
+description = "Print raw HID++ reports from the mic (--listen)"
+depends = ["build"]
+run = "target/release/yeti-gx-tray --listen"
+
+[tasks.install]
+description = "Install binary + autostart entry into $HOME (user-run only)"
+depends = ["build"]
+run = """
+install -Dm755 target/release/yeti-gx-tray ~/.local/bin/yeti-gx-tray
+install -Dm644 yeti-gx-tray.desktop ~/.config/autostart/yeti-gx-tray.desktop
+"""
