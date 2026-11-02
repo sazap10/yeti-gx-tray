@@ -26,7 +26,7 @@ pub fn modified() -> Option<SystemTime> {
 /// `#rrggbb` or `rrggbb`.
 pub fn parse_hex(s: &str) -> Option<[u8; 3]> {
     let h = s.strip_prefix('#').unwrap_or(s);
-    if h.len() != 6 || !h.is_ascii() {
+    if h.len() != 6 || !h.bytes().all(|b| b.is_ascii_hexdigit()) {
         return None;
     }
     let byte = |i: usize| u8::from_str_radix(&h[i..i + 2], 16).ok();
@@ -83,7 +83,7 @@ mod tests {
     fn parses_hex_colours() {
         assert_eq!(parse_hex("#4c4f69"), Some([0x4c, 0x4f, 0x69]));
         assert_eq!(parse_hex("EFF0F1"), Some([0xef, 0xf0, 0xf1]));
-        for bad in ["", "#", "#12345", "#1234567", "#gggggg", "#12 456", "ééé"] {
+        for bad in ["", "#", "#12345", "#1234567", "#gggggg", "#12 456", "ééé", "+f+f+f", "#-1-1-1"] {
             assert_eq!(parse_hex(bad), None, "{bad:?}");
         }
     }
