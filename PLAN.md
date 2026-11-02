@@ -59,8 +59,10 @@ the long-report "token" G HUB sends is not validated).
 | `0x02` Smart Audio Lock | read | `0` off, `1` on |
 | `0x05` Smart Audio Lock | write | `0x06` off, `0x07` on |
 
-**Errors:** `10 ff ff <feat> <func> <code> 00` — 0x02 invalid arg, 0x03 out of range,
-0x04 invalid feature index, 0x05 invalid function, 0x07 unsupported.
+**Errors:** `10 ff ff <feat> <func> <code> 00`, HID++ 2.0 codes: 0x01 unknown, 0x02 invalid
+argument, 0x03 out of range, 0x04 hardware error, 0x05 Logitech internal, 0x06 invalid feature
+index, 0x07 invalid function, 0x08 busy, 0x09 unsupported. (The upstream README's list, copied
+here originally, mislabelled 0x04–0x07.)
 
 **Device-initiated notifications:** `11 ff <idx> 20 00 <type> <value>` (sw_id 0).
 `type 0x00` mute, `0x01` gain (knob turned), `0x05` Smart Audio Lock.

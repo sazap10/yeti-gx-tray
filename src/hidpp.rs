@@ -94,13 +94,18 @@ pub fn decode(buf: &[u8], sw: u8) -> Option<Msg> {
     }
 }
 
+/// HID++ 2.0 error codes (as in Solaar's `ErrorCode`).
 pub fn error_name(code: u8) -> &'static str {
     match code {
+        0x01 => "unknown",
         0x02 => "invalid argument",
         0x03 => "out of range",
-        0x04 => "invalid feature index",
-        0x05 => "invalid function",
-        0x07 => "unsupported",
+        0x04 => "hardware error",
+        0x05 => "Logitech internal",
+        0x06 => "invalid feature index",
+        0x07 => "invalid function",
+        0x08 => "busy",
+        0x09 => "unsupported",
         _ => "unknown error",
     }
 }
