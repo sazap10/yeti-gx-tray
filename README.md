@@ -21,7 +21,8 @@ interface; this tool talks to that directly.
   A bar under the digits means Smart Audio Lock is on.
 - **Tooltip**: `Yeti GX — gain 100, unmuted, Smart Lock off` (the tooltip shortens Smart
   Audio Lock to "Smart Lock").
-- **Left click**: toggle hardware mute. **Scroll**: gain ±5 (0–100).
+- **Left click**: toggle hardware mute. **Scroll**: gain ±5 per wheel notch (0–100); hi-res
+  wheels and touchpads add up to a notch before stepping.
 - **Menu**: Mute, Smart Audio Lock, Raise gain (+5), Lower gain (-5), Quit. Everything the
   mouse gestures do is also available as a menu entry, and the menu works from the keyboard
   alone (checked in Plasma 6.8). Smart Audio Lock is greyed out while muted (see Limitations).
@@ -107,7 +108,8 @@ Run `target/release/yeti-gx-tray` in a terminal to see its messages. For the aut
 ## Limitations
 
 - Multiple instances would show multiple icons; there is no single-instance guard.
-- Scroll direction assumes Plasma reports wheel-up as a positive delta.
+- Scroll assumes Plasma's deltas: Qt's 120 per wheel notch, wheel-up positive. A tray host
+  that reports ±1 per notch would need 120 notches per step.
 - The digit colour assumes the panel background is the scheme's window colour. If it isn't
   (for example a dark Plasma theme with a light scheme), or `kdeglobals` is unreadable and the
   fallback `#eff0f1` (Breeze Dark text) lands on a light panel, the digits can be illegible.

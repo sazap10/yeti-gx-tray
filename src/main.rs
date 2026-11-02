@@ -34,11 +34,17 @@ use --fg if your panel colour differs from the scheme's window colour.
 
 Tray: left click = toggle mute, scroll = gain +/-5, menu = Mute / Smart Audio Lock / gain / Quit.";
 
+/// Plasma forwards Qt's `angleDelta`: 120 per notch of a classic wheel, smaller pieces from
+/// hi-res wheels and touchpads.
+const SCROLL_NOTCH: i32 = 120;
+
 struct YetiTray {
     mic: Option<Mic>,
     /// Panel text colour from the Plasma colour scheme.
     fg: [u8; 3],
     tx: Sender<Event>,
+    /// Scroll delta not yet worth a gain step.
+    scroll: i32,
 }
 
 impl YetiTray {
@@ -98,8 +104,15 @@ impl ksni::Tray for YetiTray {
     }
 
     fn scroll(&mut self, delta: i32, orientation: Orientation) {
-        if orientation == Orientation::Vertical && delta != 0 {
-            self.send(Cmd::AdjustGain(delta.signum()));
+        if orientation != Orientation::Vertical {
+            return;
+        }
+        // One gain step per notch, however finely the device slices it.
+        self.scroll = self.scroll.saturating_add(delta);
+        let steps = self.scroll / SCROLL_NOTCH;
+        if steps != 0 {
+            self.scroll %= SCROLL_NOTCH;
+            self.send(Cmd::AdjustGain(steps));
         }
     }
 
@@ -158,6 +171,7 @@ fn run_tray(fg_override: Option<[u8; 3]>) -> Result<(), String> {
         mic: None,
         fg: fg_override.unwrap_or_else(theme::foreground),
         tx: tx.clone(),
+        scroll: 0,
     }
     // Start even if plasmashell's tray watcher isn't up yet (autostart ordering).
     .assume_sni_available(true)
@@ -304,5 +318,29 @@ mod tests {
         assert!(parse(&["--listen", "--fg", "#ffffff"]).is_err());
         assert!(parse(&["--listen", "--help"]).is_err());
         assert!(parse(&["--nope"]).is_err());
+    }
+
+    #[test]
+    fn scroll_steps_gain_once_per_notch_however_finely_sliced() {
+        let (tx, rx) = mpsc::channel();
+        let mut t = YetiTray { mic: None, fg: [0; 3], tx, scroll: 0 };
+        let mut steps = |deltas: &[i32], o: Orientation| {
+            for &d in deltas {
+                ksni::Tray::scroll(&mut t, d, o);
+            }
+            rx.try_iter()
+                .map(|e| match e {
+                    Event::Cmd(Cmd::AdjustGain(n)) => n,
+                    _ => panic!("unexpected event"),
+                })
+                .sum::<i32>()
+        };
+        let v = Orientation::Vertical;
+        assert_eq!(steps(&[120], v), 1);
+        assert_eq!(steps(&[15; 8], v), 1, "hi-res wheel: one notch in eighths");
+        assert_eq!(steps(&[-120, -120], v), -2);
+        assert_eq!(steps(&[60], v), 0, "half a notch waits");
+        assert_eq!(steps(&[60], v), 1, "for the other half");
+        assert_eq!(steps(&[120], Orientation::Horizontal), 0);
     }
 }
