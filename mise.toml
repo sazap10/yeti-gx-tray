@@ -35,8 +35,13 @@ set -eu
 bin="$HOME/.local/bin/yeti-gx-tray"
 autostart="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
 fg="${YETI_FG:-}"
+fg="${fg#\\#}"
+case "$fg" in
+  ''|[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) ;;
+  *) echo "YETI_FG must be #rrggbb, got '$YETI_FG'" >&2; exit 1 ;;
+esac
 install -Dm755 target/release/yeti-gx-tray "$bin"
 mkdir -p "$autostart"
-sed "s|^Exec=.*|Exec=\\"$bin\\"${fg:+ --fg ${fg#\\#}}|" yeti-gx-tray.desktop > "$autostart/yeti-gx-tray.desktop"
+sed "s|^Exec=.*|Exec=\\"$bin\\"${fg:+ --fg $fg}|" yeti-gx-tray.desktop > "$autostart/yeti-gx-tray.desktop"
 echo "installed $bin and $autostart/yeti-gx-tray.desktop"
 """
