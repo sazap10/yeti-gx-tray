@@ -4,16 +4,18 @@ mod device;
 mod hidpp;
 mod icon;
 mod mic;
+mod theme;
 mod worker;
 
 use std::io;
 use std::process::ExitCode;
 use std::sync::mpsc::{self, Sender};
-use std::time::Instant;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use ksni::blocking::TrayMethods;
 use ksni::menu::{CheckmarkItem, MenuItem, StandardItem};
-use ksni::{Category, Orientation, ToolTip};
+use ksni::{Category, Orientation, Status, ToolTip};
 
 use device::{Cmd, Device, Event};
 use mic::Mic;
@@ -26,10 +28,12 @@ USAGE:
     yeti-gx-tray --listen   print every raw HID++ report from the mic with its meaning
     yeti-gx-tray --help
 
-Tray: left click = toggle mute, scroll = gain +/-5, menu = Smart Audio Lock / Quit.";
+Tray: left click = toggle mute, scroll = gain +/-5, menu = Mute / Smart Audio Lock / gain / Quit.";
 
 struct YetiTray {
     mic: Option<Mic>,
+    /// Panel text colour from the Plasma colour scheme.
+    fg: [u8; 3],
     tx: Sender<Event>,
 }
 
@@ -37,6 +41,17 @@ impl YetiTray {
     fn send(&self, cmd: Cmd) {
         // Only fails if the worker thread is gone, in which case the process is exiting.
         let _ = self.tx.send(Event::Cmd(cmd));
+    }
+
+    fn pixmaps(&self) -> Vec<ksni::Icon> {
+        icon::SIZES
+            .iter()
+            .map(|&size| ksni::Icon {
+                width: size as i32,
+                height: size as i32,
+                data: icon::render(size, self.mic.as_ref(), self.fg),
+            })
+            .collect()
     }
 }
 
@@ -53,15 +68,21 @@ impl ksni::Tray for YetiTray {
         mic::summary(self.mic.as_ref())
     }
 
+    fn status(&self) -> Status {
+        // Keeps a muted mic visible in the tray instead of letting Plasma tuck it away.
+        if self.mic.is_some_and(|m| m.muted) {
+            Status::NeedsAttention
+        } else {
+            Status::Active
+        }
+    }
+
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
-        icon::SIZES
-            .iter()
-            .map(|&size| ksni::Icon {
-                width: size as i32,
-                height: size as i32,
-                data: icon::render(size, self.mic.as_ref()),
-            })
-            .collect()
+        self.pixmaps()
+    }
+
+    fn attention_icon_pixmap(&self) -> Vec<ksni::Icon> {
+        self.pixmaps()
     }
 
     fn tool_tip(&self) -> ToolTip {
@@ -79,16 +100,38 @@ impl ksni::Tray for YetiTray {
     }
 
     fn menu(&self) -> Vec<MenuItem<Self>> {
-        let checked = self.mic.is_some_and(|m| m.smart_lock);
+        let connected = self.mic.is_some();
+        let muted = self.mic.is_some_and(|m| m.muted);
+        let locked = self.mic.is_some_and(|m| m.smart_lock);
+        let step = |label: &str, steps: i32| -> MenuItem<Self> {
+            StandardItem {
+                label: label.into(),
+                enabled: connected,
+                activate: Box::new(move |t: &mut Self| t.send(Cmd::AdjustGain(steps))),
+                ..Default::default()
+            }
+            .into()
+        };
         vec![
             CheckmarkItem {
-                label: "Smart Audio Lock".into(),
-                enabled: self.mic.is_some(),
-                checked,
-                activate: Box::new(move |t: &mut Self| t.send(Cmd::SetSmartLock(!checked))),
+                label: "Mute".into(),
+                enabled: connected,
+                checked: muted,
+                activate: Box::new(|t: &mut Self| t.send(Cmd::ToggleMute)),
                 ..Default::default()
             }
             .into(),
+            CheckmarkItem {
+                label: "Smart Audio Lock".into(),
+                enabled: connected,
+                checked: locked,
+                activate: Box::new(move |t: &mut Self| t.send(Cmd::SetSmartLock(!locked))),
+                ..Default::default()
+            }
+            .into(),
+            MenuItem::Separator,
+            step("Raise gain (+5)", 1),
+            step("Lower gain (-5)", -1),
             MenuItem::Separator,
             StandardItem {
                 label: "Quit".into(),
@@ -103,11 +146,33 @@ impl ksni::Tray for YetiTray {
 
 fn run_tray() -> Result<(), String> {
     let (tx, rx) = mpsc::channel();
-    let handle = YetiTray { mic: None, tx: tx.clone() }
+    let handle = YetiTray { mic: None, fg: theme::foreground(), tx: tx.clone() }
         // Start even if plasmashell's tray watcher isn't up yet (autostart ordering).
         .assume_sni_available(true)
         .spawn()
         .map_err(|e| format!("cannot register tray icon: {e}"))?;
+
+    // Repaint when the Plasma colour scheme changes. A stat every 2 s; the file is only read
+    // after its mtime moves.
+    let theme_handle = handle.clone();
+    thread::Builder::new()
+        .name("theme-watch".into())
+        .spawn(move || {
+            let mut seen = theme::modified();
+            loop {
+                thread::sleep(Duration::from_secs(2));
+                let now = theme::modified();
+                if now != seen {
+                    seen = now;
+                    let fg = theme::foreground();
+                    if theme_handle.update(|t| t.fg = fg).is_none() {
+                        return;
+                    }
+                }
+            }
+        })
+        .map_err(|e| e.to_string())?;
+
     let publish = move |mic: Option<Mic>| {
         handle.update(|t| t.mic = mic);
     };

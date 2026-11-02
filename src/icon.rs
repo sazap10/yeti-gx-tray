@@ -1,18 +1,26 @@
-//! Tiny software renderer: a rounded square with the gain number in a 3x5 bitmap font.
+//! Tiny software renderer for the tray pixmap: the gain number in a 3x5 bitmap font.
 //!
-//! Looks: teal = unmuted, red with a white slash = muted, grey with "--" = disconnected.
-//! A yellow corner dot marks Smart Audio Lock being on.
+//! Three looks, each distinguishable without colour:
+//! - **Unmuted** (the resting state): bare digits in the panel's text colour, no tile.
+//! - **Muted**: a solid red rounded tile with the digits knocked out of it. A filled block
+//!   versus bare digits is the cue; the digits stay fully legible.
+//! - **Disconnected**: two dimmed dashes.
+//!
+//! Smart Audio Lock adds a bar under the digits. The bar's row is reserved in every state so
+//! the digits never move when the lock toggles.
 
 use crate::mic::Mic;
 
 /// Pixmap sizes offered to the tray host; it picks the closest.
-pub const SIZES: [u32; 4] = [22, 32, 48, 64];
+pub const SIZES: [u32; 6] = [16, 22, 24, 32, 48, 64];
 
-const TEAL: [u8; 3] = [0x00, 0x7d, 0x7a];
-const RED: [u8; 3] = [0xc6, 0x28, 0x28];
-const GREY: [u8; 3] = [0x5f, 0x63, 0x68];
-const WHITE: [u8; 3] = [0xff, 0xff, 0xff];
-const AMBER: [u8; 3] = [0xff, 0xc1, 0x07];
+/// Tile fill. Off-white text on it is 4.6:1; the tile is 3.0:1 against Breeze Dark and 4.4:1
+/// against Breeze Light panels.
+const RED: [u8; 3] = [0xd0, 0x32, 0x30];
+/// Knockout ink on the red tile (red-tinted off-white, not pure white).
+const KNOCKOUT: [u8; 3] = [0xfd, 0xf3, 0xf1];
+/// Dashes for the disconnected state are the text colour at this opacity.
+const DIM_ALPHA: u8 = 0x99;
 
 /// 3x5 glyphs, one `u8` per row, low 3 bits left-to-right = MSB..LSB.
 const DIGITS: [[u8; 5]; 10] = [
@@ -29,6 +37,51 @@ const DIGITS: [[u8; 5]; 10] = [
 ];
 const DASH: [u8; 5] = [0b000, 0b000, 0b111, 0b000, 0b000];
 
+/// Pixel geometry for `n` glyphs on a `size` square.
+struct Layout {
+    x0: i32,
+    y0: i32,
+    /// Horizontal / vertical size of one font cell.
+    sx: i32,
+    sy: i32,
+    /// Gap between glyphs.
+    gap: i32,
+    /// Gap between digits and the Smart Lock bar, and the bar's thickness.
+    bar_gap: i32,
+    bar: i32,
+    /// Total glyph row width.
+    width: i32,
+}
+
+impl Layout {
+    fn new(size: u32, n: usize) -> Self {
+        let size = size as i32;
+        let n = n as i32;
+        let margin = (size / 32).max(1);
+        let gap = (size / 22).max(1);
+        let bar_gap = gap;
+        let bar = (size / 11).max(2);
+        // Tallest cell that fits digits + gap + bar; then the widest cell that fits n glyphs,
+        // never wider than tall; then re-cap the height so digits aren't more than 2:1.
+        let sy0 = ((size - 2 * margin - bar_gap - bar) / 5).max(1);
+        let fit = ((size - 2 * margin - (n - 1) * gap) / (3 * n)).max(1);
+        let sx = fit.min(sy0);
+        let sy = sy0.min(2 * sx);
+        let width = n * 3 * sx + (n - 1) * gap;
+        let block = 5 * sy + bar_gap + bar;
+        Self {
+            x0: (size - width) / 2,
+            y0: (size - block) / 2,
+            sx,
+            sy,
+            gap,
+            bar_gap,
+            bar,
+            width,
+        }
+    }
+}
+
 struct Canvas {
     size: u32,
     /// ARGB32, network byte order: bytes are A, R, G, B.
@@ -40,94 +93,93 @@ impl Canvas {
         Self { size, data: vec![0; (size * size * 4) as usize] }
     }
 
-    fn put(&mut self, x: i32, y: i32, rgb: [u8; 3]) {
+    fn put(&mut self, x: i32, y: i32, rgb: [u8; 3], alpha: u8) {
         if x < 0 || y < 0 || x >= self.size as i32 || y >= self.size as i32 {
             return;
         }
         let i = ((y as u32 * self.size + x as u32) * 4) as usize;
-        self.data[i..i + 4].copy_from_slice(&[0xff, rgb[0], rgb[1], rgb[2]]);
+        self.data[i..i + 4].copy_from_slice(&[alpha, rgb[0], rgb[1], rgb[2]]);
     }
 
-    fn rounded_square(&mut self, rgb: [u8; 3]) {
-        let n = self.size as i32;
-        let r = (n / 5).max(2);
-        for y in 0..n {
-            for x in 0..n {
-                // Distance from the nearest corner centre, only where we're in a corner box.
-                let cx = if x < r { r - 1 } else if x >= n - r { n - r } else { x };
-                let cy = if y < r { r - 1 } else if y >= n - r { n - r } else { y };
-                let (dx, dy) = (x - cx, y - cy);
-                if dx * dx + dy * dy < r * r {
-                    self.put(x, y, rgb);
+    fn rect(&mut self, x0: i32, y0: i32, w: i32, h: i32, rgb: [u8; 3], alpha: u8) {
+        for y in y0..y0 + h {
+            for x in x0..x0 + w {
+                self.put(x, y, rgb, alpha);
+            }
+        }
+    }
+
+    /// Full-canvas rounded square with 4x4-supersampled edges.
+    fn tile(&mut self, rgb: [u8; 3]) {
+        let s = self.size as f32;
+        let r = s * 0.22;
+        for y in 0..self.size {
+            for x in 0..self.size {
+                let mut inside = 0u32;
+                for sy in 0..4 {
+                    for sx in 0..4 {
+                        let px = x as f32 + (sx as f32 + 0.5) / 4.0;
+                        let py = y as f32 + (sy as f32 + 0.5) / 4.0;
+                        let (cx, cy) = (px.clamp(r, s - r), py.clamp(r, s - r));
+                        if (px - cx).powi(2) + (py - cy).powi(2) <= r * r {
+                            inside += 1;
+                        }
+                    }
+                }
+                if inside > 0 {
+                    self.put(x as i32, y as i32, rgb, (inside * 255 / 16) as u8);
                 }
             }
         }
     }
 
-    fn rect(&mut self, x0: i32, y0: i32, w: i32, h: i32, rgb: [u8; 3]) {
-        for y in y0..y0 + h {
-            for x in x0..x0 + w {
-                self.put(x, y, rgb);
-            }
-        }
-    }
-
-    fn line(&mut self, (x0, y0): (i32, i32), (x1, y1): (i32, i32), thick: i32, rgb: [u8; 3]) {
-        let steps = (x1 - x0).abs().max((y1 - y0).abs()).max(1);
-        for s in 0..=steps {
-            let x = x0 + (x1 - x0) * s / steps;
-            let y = y0 + (y1 - y0) * s / steps;
-            self.rect(x - thick / 2, y - thick / 2, thick, thick, rgb);
-        }
-    }
-
-    /// Draw glyphs centred, as tall as fits and as wide as the count allows.
-    fn glyphs(&mut self, glyphs: &[[u8; 5]], rgb: [u8; 3]) {
-        let n = glyphs.len() as i32;
-        let size = self.size as i32;
-        let margin = (size / 8).max(2);
-        let avail = size - 2 * margin;
-        let sy = (avail / 5).max(1);
-        // n glyphs of 3 cells plus n-1 gaps of 1 cell = 4n-1 cells.
-        let sx = (avail / (4 * n - 1)).min(sy).max(1);
-        let total_w = (4 * n - 1) * sx;
-        let x_start = (size - total_w) / 2;
-        let y_start = (size - 5 * sy) / 2;
+    fn glyphs(&mut self, lay: &Layout, glyphs: &[[u8; 5]], rgb: [u8; 3], alpha: u8) {
         for (gi, g) in glyphs.iter().enumerate() {
-            let gx = x_start + gi as i32 * 4 * sx;
+            let gx = lay.x0 + gi as i32 * (3 * lay.sx + lay.gap);
             for (row, bits) in g.iter().enumerate() {
                 for col in 0..3 {
                     if bits >> (2 - col) & 1 == 1 {
-                        self.rect(gx + col * sx, y_start + row as i32 * sy, sx, sy, rgb);
+                        let (x, y) = (gx + col * lay.sx, lay.y0 + row as i32 * lay.sy);
+                        self.rect(x, y, lay.sx, lay.sy, rgb, alpha);
                     }
                 }
             }
         }
     }
+
+    fn lock_bar(&mut self, lay: &Layout, rgb: [u8; 3]) {
+        let y = lay.y0 + 5 * lay.sy + lay.bar_gap;
+        self.rect(lay.x0, y, lay.width, lay.bar, rgb, 0xff);
+    }
 }
 
 /// Render the icon as ARGB32 (network byte order) bytes, `size * size * 4` long.
-pub fn render(size: u32, mic: Option<&Mic>) -> Vec<u8> {
+/// `fg` is the panel's text colour, used for the resting and disconnected looks.
+pub fn render(size: u32, mic: Option<&Mic>, fg: [u8; 3]) -> Vec<u8> {
     let mut c = Canvas::new(size);
-    let n = size as i32;
     match mic {
         None => {
-            c.rounded_square(GREY);
-            c.glyphs(&[DASH, DASH], WHITE);
+            let lay = Layout::new(size, 2);
+            c.glyphs(&lay, &[DASH, DASH], fg, DIM_ALPHA);
         }
         Some(m) => {
-            c.rounded_square(if m.muted { RED } else { TEAL });
-            let text = m.gain.min(100).to_string();
-            let glyphs: Vec<[u8; 5]> =
-                text.bytes().map(|b| DIGITS[(b - b'0') as usize]).collect();
-            c.glyphs(&glyphs, WHITE);
-            if m.muted {
-                let m = n / 5;
-                c.line((m, n - m), (n - m, m), (n / 12).max(2), WHITE);
-            }
+            let glyphs: Vec<[u8; 5]> = m
+                .gain
+                .min(100)
+                .to_string()
+                .bytes()
+                .map(|b| DIGITS[(b - b'0') as usize])
+                .collect();
+            let lay = Layout::new(size, glyphs.len());
+            let ink = if m.muted {
+                c.tile(RED);
+                KNOCKOUT
+            } else {
+                fg
+            };
+            c.glyphs(&lay, &glyphs, ink, 0xff);
             if m.smart_lock {
-                let d = (n / 6).max(3);
-                c.rect(n - d - n / 14, n / 14, d, d, AMBER);
+                c.lock_bar(&lay, ink);
             }
         }
     }
@@ -138,54 +190,159 @@ pub fn render(size: u32, mic: Option<&Mic>) -> Vec<u8> {
 mod tests {
     use super::*;
 
+    const FG: [u8; 3] = [0x4c, 0x4f, 0x69];
     const ON: Mic = Mic { muted: false, gain: 100, smart_lock: false };
 
-    fn pixel(data: &[u8], size: u32, x: u32, y: u32) -> [u8; 4] {
+    fn alpha(data: &[u8], size: u32, x: u32, y: u32) -> u8 {
+        data[((y * size + x) * 4) as usize]
+    }
+
+    fn rgb(data: &[u8], size: u32, x: u32, y: u32) -> [u8; 3] {
         let i = ((y * size + x) * 4) as usize;
-        data[i..i + 4].try_into().unwrap()
+        [data[i + 1], data[i + 2], data[i + 3]]
+    }
+
+    fn opaque_px(data: &[u8], size: u32) -> usize {
+        (0..size * size).filter(|i| alpha(data, size, i % size, i / size) == 0xff).count()
     }
 
     #[test]
     fn buffer_is_argb_sized_for_every_size() {
         for s in SIZES {
-            assert_eq!(render(s, Some(&ON)).len(), (s * s * 4) as usize);
-            assert_eq!(render(s, None).len(), (s * s * 4) as usize);
+            assert_eq!(render(s, Some(&ON), FG).len(), (s * s * 4) as usize);
+            assert_eq!(render(s, None, FG).len(), (s * s * 4) as usize);
         }
     }
 
     #[test]
-    fn corners_are_transparent_and_centre_is_opaque() {
-        let d = render(32, Some(&ON));
-        assert_eq!(pixel(&d, 32, 0, 0)[0], 0);
-        assert_eq!(pixel(&d, 32, 16, 1)[0], 0xff);
+    fn digit_strokes_are_at_least_two_pixels_from_22px_up() {
+        // The audit finding: "100" was drawn with 1 px strokes at 22 px. Find the shortest
+        // horizontal run of ink in the middle row of the glyphs.
+        for s in [22u32, 24, 32, 48, 64] {
+            let d = render(s, Some(&ON), FG);
+            let lay = Layout::new(s, 3);
+            assert!(lay.sx >= 2, "size {s}: sx={}", lay.sx);
+            let y = (lay.y0 + lay.sy * 2) as u32; // row 2 of the 3x5 font: full bars
+            let mut min_run = u32::MAX;
+            let mut run = 0;
+            for x in 0..s {
+                if alpha(&d, s, x, y) == 0xff {
+                    run += 1;
+                } else if run > 0 {
+                    min_run = min_run.min(run);
+                    run = 0;
+                }
+            }
+            assert!(min_run >= 2, "size {s}: shortest stroke run {min_run}px");
+        }
     }
 
     #[test]
-    fn the_three_looks_and_each_gain_differ() {
-        let ok = render(32, Some(&ON));
-        let muted = render(32, Some(&Mic { muted: true, ..ON }));
-        let gone = render(32, None);
-        assert_ne!(ok, muted);
-        assert_ne!(ok, gone);
-        assert_ne!(muted, gone);
-        // Background colours: teal vs red vs grey, sampled in an unused corner of the square.
-        assert_eq!(pixel(&ok, 32, 8, 3), [0xff, TEAL[0], TEAL[1], TEAL[2]]);
-        assert_eq!(pixel(&muted, 32, 8, 3), [0xff, RED[0], RED[1], RED[2]]);
-        assert_eq!(pixel(&gone, 32, 8, 3), [0xff, GREY[0], GREY[1], GREY[2]]);
-        let g = |gain| render(32, Some(&Mic { gain, ..ON }));
-        assert_ne!(g(7), g(8));
-        assert_ne!(g(0), g(100));
-        assert_ne!(g(5), g(55));
+    fn content_stays_inside_the_canvas_for_every_width() {
+        for s in SIZES {
+            for gain in [0u8, 7, 8, 10, 55, 99, 100] {
+                let m = Mic { gain, smart_lock: true, ..ON };
+                let d = render(s, Some(&m), FG);
+                // A bare-digit icon keeps the outer 1 px ring empty.
+                for i in 0..s {
+                    for (x, y) in [(i, 0), (i, s - 1), (0, i), (s - 1, i)] {
+                        assert_eq!(alpha(&d, s, x, y), 0, "size {s} gain {gain} at ({x},{y})");
+                    }
+                }
+            }
+        }
     }
 
     #[test]
-    fn smart_lock_draws_a_marker() {
-        let on = render(32, Some(&Mic { smart_lock: true, ..ON }));
-        assert_ne!(on, render(32, Some(&ON)));
+    fn resting_icon_is_bare_digits_in_the_text_colour() {
+        let d = render(22, Some(&ON), FG);
+        assert_eq!(alpha(&d, 22, 0, 0), 0);
+        assert_eq!(alpha(&d, 22, 11, 1), 0, "no tile behind the digits");
+        let lay = Layout::new(22, 3);
+        // Bottom row of the first glyph ("1") is a full 3-cell bar.
+        let (x, y) = (lay.x0 as u32, (lay.y0 + 4 * lay.sy) as u32);
+        assert_eq!(alpha(&d, 22, x, y), 0xff);
+        assert_eq!(rgb(&d, 22, x, y), FG);
+    }
+
+    #[test]
+    fn muted_is_a_solid_block_not_just_a_colour_change() {
+        for s in SIZES {
+            let muted = render(s, Some(&Mic { muted: true, ..ON }), FG);
+            let rest = render(s, Some(&ON), FG);
+            // Mid-edge pixels of the tile are opaque red; at rest they are empty.
+            let mid = s / 2;
+            assert_eq!(alpha(&muted, s, mid, 0), 0xff);
+            assert_eq!(rgb(&muted, s, mid, 0), RED);
+            assert_eq!(alpha(&rest, s, mid, 0), 0);
+            // Edge midpoints on all four sides: a block, not just bare ink.
+            for (x, y) in [(mid, s - 1), (0, mid), (s - 1, mid)] {
+                assert_eq!(alpha(&muted, s, x, y), 0xff, "size {s} at ({x},{y})");
+                assert_eq!(alpha(&rest, s, x, y), 0, "size {s} at ({x},{y})");
+            }
+        }
+    }
+
+    #[test]
+    fn muted_digits_are_knocked_out_and_not_struck_through() {
+        let s = 22;
+        let muted = render(s, Some(&Mic { muted: true, ..ON }), FG);
+        let rest = render(s, Some(&ON), FG);
+        // Every digit pixel at rest is knockout ink when muted; nothing else draws over them.
+        for y in 0..s {
+            for x in 0..s {
+                if alpha(&rest, s, x, y) == 0xff {
+                    assert_eq!(rgb(&muted, s, x, y), KNOCKOUT, "({x},{y})");
+                }
+            }
+        }
+        // And the knockout ink pixels are exactly the digit pixels.
+        let ink = |d: &[u8]| {
+            (0..s * s).filter(|i| rgb(d, s, i % s, i / s) == KNOCKOUT && alpha(d, s, i % s, i / s) == 0xff).count()
+        };
+        assert_eq!(ink(&muted), opaque_px(&rest, s));
+    }
+
+    #[test]
+    fn smart_lock_adds_a_bar_and_never_moves_the_digits() {
+        for s in SIZES {
+            let off = render(s, Some(&ON), FG);
+            let on = render(s, Some(&Mic { smart_lock: true, ..ON }), FG);
+            let lay = Layout::new(s, 3);
+            let bar_y = (lay.y0 + 5 * lay.sy + lay.bar_gap) as u32;
+            let mid = s / 2;
+            assert_eq!(alpha(&off, s, mid, bar_y), 0, "size {s}");
+            assert_eq!(alpha(&on, s, mid, bar_y), 0xff, "size {s}");
+            // Everything above the bar is identical.
+            let cut = (bar_y * s * 4) as usize;
+            assert_eq!(off[..cut], on[..cut], "size {s}");
+        }
+    }
+
+    #[test]
+    fn disconnected_is_two_dimmed_dashes_with_no_tile() {
+        let d = render(22, None, FG);
+        assert_eq!(alpha(&d, 22, 0, 0), 0);
+        assert_eq!(alpha(&d, 22, 11, 0), 0);
+        let lay = Layout::new(22, 2);
+        let y = (lay.y0 + 2 * lay.sy) as u32;
+        assert_eq!(alpha(&d, 22, lay.x0 as u32, y), DIM_ALPHA);
+        assert_eq!(rgb(&d, 22, lay.x0 as u32, y), FG);
+    }
+
+    #[test]
+    fn every_gain_and_state_renders_differently() {
+        let g = |gain, muted| render(22, Some(&Mic { gain, muted, smart_lock: false }), FG);
+        let mut seen = std::collections::HashSet::new();
+        for gain in 0..=100u8 {
+            assert!(seen.insert(g(gain, false)), "gain {gain} duplicates another");
+        }
+        assert_ne!(g(50, false), g(50, true));
+        assert_ne!(g(50, true), render(22, None, FG));
     }
 
     #[test]
     fn out_of_range_gain_does_not_panic() {
-        render(22, Some(&Mic { gain: 255, ..ON }));
+        render(22, Some(&Mic { gain: 255, ..ON }), FG);
     }
 }

@@ -7,11 +7,18 @@ The mic's real preamp gain is invisible to Linux audio tools (ALSA only exposes 
 0–12 digital trim). It is reachable over Logitech HID++ 2.0 on the mic's vendor hidraw
 interface; this tool talks to that directly.
 
-- **Icon**: the gain number drawn on the icon. Teal = unmuted, red with a slash = muted,
-  grey `--` = disconnected. A yellow corner dot = Smart Audio Lock on.
+- **Icon**: the gain number, drawn to stay legible at 22 px. Every state is distinguishable
+  without colour:
+  - unmuted: bare digits in the panel's text colour, no tile (the quiet resting state);
+  - muted: a solid red tile with the digits knocked out of it; the tray item's status is also
+    set to "needs attention";
+  - disconnected: two dimmed dashes.
+
+  A bar under the digits means Smart Audio Lock is on.
 - **Tooltip**: `Yeti GX — gain 100, unmuted, Smart Lock off`.
 - **Left click**: toggle hardware mute. **Scroll**: gain ±5 (0–100).
-- **Menu**: Smart Audio Lock checkbox, Quit.
+- **Menu**: Mute, Smart Audio Lock, Raise gain (+5), Lower gain (-5), Quit. Everything the
+  mouse gestures do is also available as a menu entry.
 - Recovers automatically after unplug/replug.
 
 No Qt, no hidapi: StatusNotifierItem over D-Bus via [`ksni`](https://crates.io/crates/ksni),
@@ -120,7 +127,15 @@ index on reconnect.
 
 Tray callbacks only enqueue commands, so the D-Bus thread never blocks on the device.
 
+The icon is rendered in software (`src/icon.rs`) at 16, 22, 24, 32, 48 and 64 px with a 3x5
+bitmap font; no image or font dependency. A 2 s stat of `kdeglobals` in a separate thread
+repaints the icon when the Plasma colour scheme changes.
+
 ## Limitations
 
 - Multiple instances would show multiple icons; there is no single-instance guard.
 - Scroll direction assumes Plasma reports wheel-up as a positive delta.
+- The resting icon uses the `ForegroundNormal` of `[Colors:Window]` in `~/.config/kdeglobals`
+  (re-read when that file changes). If the panel uses a different colour set, or the file is
+  unreadable, the fallback is Breeze Dark's text colour (`#eff0f1`), which is illegible on a
+  light panel.
