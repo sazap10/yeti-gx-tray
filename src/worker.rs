@@ -140,8 +140,17 @@ impl<P: FnMut(Option<Mic>)> Worker<P> {
             while let Ok(ev) = self.rx.try_recv() {
                 self.absorb(s, ev)?;
             }
-            while let Some(c) = s.backlog.pop_front() {
-                self.apply(s, c)?;
+            if !s.backlog.is_empty() {
+                // Commands work from the cached state. If the knob, a hardware button or our
+                // own last write may have moved it, read the truth first so a command never
+                // writes back a value the device has already left.
+                if s.dirty {
+                    last_refresh = Instant::now();
+                    self.refresh_logged(s)?;
+                }
+                while let Some(c) = s.backlog.pop_front() {
+                    self.apply(s, c)?;
+                }
             }
             if s.dirty || last_refresh.elapsed() >= REFRESH {
                 last_refresh = Instant::now();
