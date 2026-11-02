@@ -54,7 +54,7 @@ Docs: `PLAN.md` (original spec and acceptance), `README.md` (users), `PRODUCT.md
   frames must be ignored, never fatal.
 - Mute field: `0` = muted, `1` = unmuted. Smart Lock reads field 0x02 as 0/1 but writes field
   0x05 as `0x06` off / `0x07` on. The mic reverts a Smart Lock change made while muted, so the
-  menu disables it then.
+  menu disables it then and the worker drops a queued one.
 - Software writes produce no notification; the worker re-reads after every write and every
   2 s. Hardware knob/button changes do notify (`11 ff <idx> 20 00 <type> <value>`).
 
@@ -62,7 +62,9 @@ Docs: `PLAN.md` (original spec and acceptance), `README.md` (users), `PRODUCT.md
 
 - Only `Fail::Gone` ends a session; `Fail::Rejected` fails the request in flight and is logged.
 - Tray callbacks only enqueue `Cmd`s; the D-Bus thread never blocks on the device.
-- Commands are applied to the cached `Mic`; when the cache is dirty, refresh first.
+- Commands are applied to the cached `Mic` only after a refresh that completed with no
+  notification during it (`stale == false`); otherwise they stay queued. Never re-read in a
+  tight loop on rejected reads: the periodic 2 s refresh is the retry.
 - Every connect bumps `epoch`; events from an older reader are dropped.
 - No busy loops: idle CPU must stay ~0 (reader wakes 1/s, theme watcher stats every 2 s).
 

@@ -48,8 +48,11 @@ struct Session {
     /// Discovered index of feature 0x8370.
     index: u8,
     mic: Mic,
-    /// A notification or a write means the cached state may be stale.
+    /// A notification or a write means the cached state may be stale: re-read soon.
     dirty: bool,
+    /// The last refresh failed or a notification overtook it, so `mic` must not seed a
+    /// command. Only a refresh that completes with no notification during it clears this.
+    stale: bool,
     /// Commands received while waiting for a reply.
     backlog: VecDeque<Cmd>,
 }
@@ -111,6 +114,7 @@ impl<P: FnMut(Option<Mic>)> Worker<P> {
             index: 0,
             mic: Mic { muted: false, gain: 0, smart_lock: false },
             dirty: false,
+            stale: true,
             backlog: VecDeque::new(),
         };
         let req = hidpp::get_feature(hidpp::SW_READ);
@@ -148,8 +152,13 @@ impl<P: FnMut(Option<Mic>)> Worker<P> {
                     last_refresh = Instant::now();
                     self.refresh_logged(s)?;
                 }
-                while let Some(c) = s.backlog.pop_front() {
-                    self.apply(s, c)?;
+                // Still stale (a notification landed mid-read, or a read was rejected): keep
+                // the commands queued. A notification re-reads on the next pass; a rejection
+                // waits for the periodic refresh, which bounds the retry rate.
+                if !s.stale {
+                    while let Some(c) = s.backlog.pop_front() {
+                        self.apply(s, c)?;
+                    }
                 }
             }
             if s.dirty || last_refresh.elapsed() >= REFRESH {
@@ -261,11 +270,14 @@ impl<P: FnMut(Option<Mic>)> Worker<P> {
 
     fn refresh(&mut self, s: &mut Session) -> Result<(), Fail> {
         s.dirty = false;
+        s.stale = true;
         let mute = self.read_field(s, hidpp::FIELD_MUTE)?;
         let gain = self.read_field(s, hidpp::FIELD_GAIN)?;
         let lock = self.read_field(s, hidpp::FIELD_SMART_LOCK_READ)?;
         s.mic = Mic { muted: mute == 0, gain: gain.min(hidpp::GAIN_MAX), smart_lock: lock != 0 };
         self.show(Some(s.mic));
+        // A notification during the reads set `dirty` again; then these values may be old.
+        s.stale = s.dirty;
         Ok(())
     }
 
@@ -281,6 +293,12 @@ impl<P: FnMut(Option<Mic>)> Worker<P> {
                 let g = (i32::from(s.mic.gain) + steps * GAIN_STEP).clamp(0, i32::from(hidpp::GAIN_MAX));
                 s.mic.gain = g as u8;
                 (hidpp::FIELD_GAIN, s.mic.gain)
+            }
+            Cmd::SetSmartLock(_) if s.mic.muted => {
+                // The menu disables this while muted, but a command can be queued before the
+                // menu catches up. The mic would read the change back, then revert it on unmute.
+                eprintln!("ignoring Smart Audio Lock change while muted");
+                return Ok(());
             }
             Cmd::SetSmartLock(on) => {
                 s.mic.smart_lock = on;
