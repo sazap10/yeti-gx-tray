@@ -23,6 +23,16 @@ pub fn modified() -> Option<SystemTime> {
     fs::metadata(config_path()?).ok()?.modified().ok()
 }
 
+/// `#rrggbb` or `rrggbb`.
+pub fn parse_hex(s: &str) -> Option<[u8; 3]> {
+    let h = s.strip_prefix('#').unwrap_or(s);
+    if h.len() != 6 || !h.is_ascii() {
+        return None;
+    }
+    let byte = |i: usize| u8::from_str_radix(&h[i..i + 2], 16).ok();
+    Some([byte(0)?, byte(2)?, byte(4)?])
+}
+
 pub fn foreground() -> [u8; 3] {
     config_path()
         .and_then(|p| fs::read_to_string(p).ok())
@@ -67,5 +77,14 @@ mod tests {
         assert_eq!(parse_foreground("[Colors:Window]\nForegroundNormal=1,2,300\n"), None);
         assert_eq!(parse_foreground("[Colors:Window]\nForegroundNormal=1,2,3,4\n"), None);
         assert_eq!(parse_foreground("ForegroundNormal=1,2,3\n"), None);
+    }
+
+    #[test]
+    fn parses_hex_colours() {
+        assert_eq!(parse_hex("#4c4f69"), Some([0x4c, 0x4f, 0x69]));
+        assert_eq!(parse_hex("EFF0F1"), Some([0xef, 0xf0, 0xf1]));
+        for bad in ["", "#", "#12345", "#1234567", "#gggggg", "#12 456", "ééé"] {
+            assert_eq!(parse_hex(bad), None, "{bad:?}");
+        }
     }
 }

@@ -24,9 +24,13 @@ const USAGE: &str = "\
 yeti-gx-tray: Logitech Yeti GX gain/mute/Smart Lock in the system tray
 
 USAGE:
-    yeti-gx-tray            run the tray icon
-    yeti-gx-tray --listen   print every raw HID++ report from the mic with its meaning
+    yeti-gx-tray              run the tray icon
+    yeti-gx-tray --fg #rrggbb run the tray icon with a fixed digit colour
+    yeti-gx-tray --listen     print every raw HID++ report from the mic with its meaning
     yeti-gx-tray --help
+
+The digit colour follows the Plasma colour scheme (Colors:Window text) unless --fg is given;
+use --fg if your panel colour differs from the scheme's window colour.
 
 Tray: left click = toggle mute, scroll = gain +/-5, menu = Mute / Smart Audio Lock / gain / Quit.";
 
@@ -122,8 +126,11 @@ impl ksni::Tray for YetiTray {
             }
             .into(),
             CheckmarkItem {
-                label: "Smart Audio Lock".into(),
-                enabled: connected,
+                // The device ignores a Smart Lock change made while muted (it reads back as
+                // changed, then reverts on unmute), so don't offer it.
+                label: if muted { "Smart Audio Lock (unmute to change)" } else { "Smart Audio Lock" }
+                    .into(),
+                enabled: connected && !muted,
                 checked: locked,
                 activate: Box::new(move |t: &mut Self| t.send(Cmd::SetSmartLock(!locked))),
                 ..Default::default()
@@ -144,34 +151,41 @@ impl ksni::Tray for YetiTray {
     }
 }
 
-fn run_tray() -> Result<(), String> {
+/// `fg_override` pins the icon's ink colour; otherwise it follows the Plasma colour scheme.
+fn run_tray(fg_override: Option<[u8; 3]>) -> Result<(), String> {
     let (tx, rx) = mpsc::channel();
-    let handle = YetiTray { mic: None, fg: theme::foreground(), tx: tx.clone() }
-        // Start even if plasmashell's tray watcher isn't up yet (autostart ordering).
-        .assume_sni_available(true)
-        .spawn()
-        .map_err(|e| format!("cannot register tray icon: {e}"))?;
+    let handle = YetiTray {
+        mic: None,
+        fg: fg_override.unwrap_or_else(theme::foreground),
+        tx: tx.clone(),
+    }
+    // Start even if plasmashell's tray watcher isn't up yet (autostart ordering).
+    .assume_sni_available(true)
+    .spawn()
+    .map_err(|e| format!("cannot register tray icon: {e}"))?;
 
     // Repaint when the Plasma colour scheme changes. A stat every 2 s; the file is only read
-    // after its mtime moves.
-    let theme_handle = handle.clone();
-    thread::Builder::new()
-        .name("theme-watch".into())
-        .spawn(move || {
-            let mut seen = theme::modified();
-            loop {
-                thread::sleep(Duration::from_secs(2));
-                let now = theme::modified();
-                if now != seen {
-                    seen = now;
-                    let fg = theme::foreground();
-                    if theme_handle.update(|t| t.fg = fg).is_none() {
-                        return;
+    // after its mtime moves. Pointless (and skipped) when the colour is pinned.
+    if fg_override.is_none() {
+        let theme_handle = handle.clone();
+        thread::Builder::new()
+            .name("theme-watch".into())
+            .spawn(move || {
+                let mut seen = theme::modified();
+                loop {
+                    thread::sleep(Duration::from_secs(2));
+                    let now = theme::modified();
+                    if now != seen {
+                        seen = now;
+                        let fg = theme::foreground();
+                        if theme_handle.update(|t| t.fg = fg).is_none() {
+                            return;
+                        }
                     }
                 }
-            }
-        })
-        .map_err(|e| e.to_string())?;
+            })
+            .map_err(|e| e.to_string())?;
+    }
 
     let publish = move |mic: Option<Mic>| {
         handle.update(|t| t.mic = mic);
@@ -211,21 +225,84 @@ fn run_listen() -> Result<(), String> {
     }
 }
 
+enum Mode {
+    Tray,
+    Listen,
+    Help,
+}
+
+fn parse_args(args: impl IntoIterator<Item = String>) -> Result<(Mode, Option<[u8; 3]>), String> {
+    let (mut mode, mut fg) = (None, None);
+    let mut args = args.into_iter();
+    while let Some(a) = args.next() {
+        let mut set_mode = |m: Mode| match mode.replace(m) {
+            None => Ok(()),
+            Some(_) => Err("only one of --listen / --help may be given".to_string()),
+        };
+        match a.as_str() {
+            "--listen" => set_mode(Mode::Listen)?,
+            "-h" | "--help" => set_mode(Mode::Help)?,
+            _ => {
+                let value = if a == "--fg" {
+                    args.next().ok_or("--fg needs a colour, e.g. --fg '#4c4f69'")?
+                } else if let Some(v) = a.strip_prefix("--fg=") {
+                    v.to_string()
+                } else {
+                    return Err(format!("unknown argument {a:?}\n\n{USAGE}"));
+                };
+                let rgb = theme::parse_hex(&value)
+                    .ok_or_else(|| format!("--fg: {value:?} is not a #rrggbb colour"))?;
+                fg = Some(rgb);
+            }
+        }
+    }
+    let mode = mode.unwrap_or(Mode::Tray);
+    if fg.is_some() && !matches!(mode, Mode::Tray) {
+        return Err("--fg only applies to the tray icon".into());
+    }
+    Ok((mode, fg))
+}
+
 fn main() -> ExitCode {
-    let result = match std::env::args().nth(1).as_deref() {
-        None => run_tray(),
-        Some("--listen") => run_listen(),
-        Some("-h" | "--help") => {
+    let result = parse_args(std::env::args().skip(1)).and_then(|(mode, fg)| match mode {
+        Mode::Tray => run_tray(fg),
+        Mode::Listen => run_listen(),
+        Mode::Help => {
             println!("{USAGE}");
             Ok(())
         }
-        Some(other) => Err(format!("unknown argument {other:?}\n\n{USAGE}")),
-    };
+    });
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("yeti-gx-tray: {e}");
             ExitCode::FAILURE
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(args: &[&str]) -> Result<(Mode, Option<[u8; 3]>), String> {
+        parse_args(args.iter().map(|s| s.to_string()))
+    }
+
+    #[test]
+    fn fg_accepts_both_forms_and_hash_optional() {
+        assert_eq!(parse(&["--fg", "#4c4f69"]).unwrap().1, Some([0x4c, 0x4f, 0x69]));
+        assert_eq!(parse(&["--fg=4C4F69"]).unwrap().1, Some([0x4c, 0x4f, 0x69]));
+        assert!(matches!(parse(&[]).unwrap(), (Mode::Tray, None)));
+    }
+
+    #[test]
+    fn rejects_bad_or_misplaced_arguments() {
+        assert!(parse(&["--fg"]).is_err());
+        assert!(parse(&["--fg", "red"]).is_err());
+        assert!(parse(&["--fg", "#12345"]).is_err());
+        assert!(parse(&["--listen", "--fg", "#ffffff"]).is_err());
+        assert!(parse(&["--listen", "--help"]).is_err());
+        assert!(parse(&["--nope"]).is_err());
     }
 }

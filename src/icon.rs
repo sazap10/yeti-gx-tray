@@ -20,7 +20,7 @@ const RED: [u8; 3] = [0xd0, 0x32, 0x30];
 /// Knockout ink on the red tile (red-tinted off-white, not pure white).
 const KNOCKOUT: [u8; 3] = [0xfd, 0xf3, 0xf1];
 /// Dashes for the disconnected state are the text colour at this opacity.
-const DIM_ALPHA: u8 = 0x99;
+const DIM_ALPHA: u8 = 0xBF;
 
 /// 3x5 glyphs, one `u8` per row, low 3 bits left-to-right = MSB..LSB.
 const DIGITS: [[u8; 5]; 10] = [
@@ -68,10 +68,16 @@ impl Layout {
         let sx = fit.min(sy0);
         let sy = sy0.min(2 * sx);
         let width = n * 3 * sx + (n - 1) * gap;
-        let block = 5 * sy + bar_gap + bar;
+        let digits = 5 * sy;
+        let block = digits + bar_gap + bar;
+        // Centre the digits on the canvas (the common, lock-off state then looks balanced)
+        // when the lock bar still fits in the bottom margin; else centre digits+bar as one
+        // block. Either way the digits never move when the lock toggles.
+        let centred = (size - digits) / 2;
+        let y0 = if centred + block <= size - margin { centred } else { (size - block) / 2 };
         Self {
             x0: (size - width) / 2,
-            y0: (size - block) / 2,
+            y0,
             sx,
             sy,
             gap,
@@ -344,5 +350,32 @@ mod tests {
     #[test]
     fn out_of_range_gain_does_not_panic() {
         render(22, Some(&Mic { gain: 255, ..ON }), FG);
+    }
+
+    #[test]
+    fn digits_are_vertically_centred_wherever_the_bar_still_fits() {
+        for s in [22u32, 24, 32] {
+            let lay = Layout::new(s, 3);
+            let (top, bottom) = (lay.y0, s as i32 - (lay.y0 + 5 * lay.sy));
+            assert!((top - bottom).abs() <= 1, "size {s}: {top} above, {bottom} below");
+        }
+    }
+
+    #[test]
+    fn dashes_hold_3_to_1_contrast_on_light_and_dark_panels() {
+        fn lum(c: [f64; 3]) -> f64 {
+            let l = |v: f64| {
+                let v = v / 255.0;
+                if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+            };
+            0.2126 * l(c[0]) + 0.7152 * l(c[1]) + 0.0722 * l(c[2])
+        }
+        let a = f64::from(DIM_ALPHA) / 255.0;
+        // (text colour, panel colour): Catppuccin Latte as on the author's panel, Breeze Dark.
+        for (fg, bg) in [([76.0, 79.0, 105.0], [230.0, 233.0, 239.0]), ([239.0, 240.0, 241.0], [35.0, 38.0, 41.0])] {
+            let ink = [0, 1, 2].map(|i| fg[i] * a + bg[i] * (1.0 - a));
+            let (hi, lo) = (lum(ink).max(lum(bg)), lum(ink).min(lum(bg)));
+            assert!((hi + 0.05) / (lo + 0.05) >= 3.0, "fg {fg:?} on {bg:?}");
+        }
     }
 }

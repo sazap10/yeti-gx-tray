@@ -18,7 +18,8 @@ interface; this tool talks to that directly.
 - **Tooltip**: `Yeti GX — gain 100, unmuted, Smart Lock off`.
 - **Left click**: toggle hardware mute. **Scroll**: gain ±5 (0–100).
 - **Menu**: Mute, Smart Audio Lock, Raise gain (+5), Lower gain (-5), Quit. Everything the
-  mouse gestures do is also available as a menu entry.
+  mouse gestures do is also available as a menu entry, and the menu works from the keyboard
+  alone (checked in Plasma 6.8). Smart Audio Lock is greyed out while muted (see Limitations).
 - Recovers automatically after unplug/replug.
 
 No Qt, no hidapi: StatusNotifierItem over D-Bus via [`ksni`](https://crates.io/crates/ksni),
@@ -135,7 +136,12 @@ repaints the icon when the Plasma colour scheme changes.
 
 - Multiple instances would show multiple icons; there is no single-instance guard.
 - Scroll direction assumes Plasma reports wheel-up as a positive delta.
-- The resting icon uses the `ForegroundNormal` of `[Colors:Window]` in `~/.config/kdeglobals`
-  (re-read when that file changes). If the panel uses a different colour set, or the file is
-  unreadable, the fallback is Breeze Dark's text colour (`#eff0f1`), which is illegible on a
-  light panel.
+- The digit colour is the `ForegroundNormal` of `[Colors:Window]` in `~/.config/kdeglobals`
+  (re-read within about 2 s of that file changing; checked by swapping the colour in a
+  scratch config). That assumes the panel background is the scheme's window colour. If your
+  panel differs (for example a dark Plasma theme with a light scheme), or the file is
+  unreadable and the fallback `#eff0f1` (Breeze Dark text) lands on a light panel, pin the
+  colour: `yeti-gx-tray --fg '#4c4f69'`. In `yeti-gx-tray.desktop` put it in `Exec=`.
+- The mic ignores a Smart Audio Lock change made while muted: it reads back changed, then
+  reverts on unmute (observed on firmware 2.00). The menu entry is therefore disabled while
+  muted. Gain changes made while muted do persist.
