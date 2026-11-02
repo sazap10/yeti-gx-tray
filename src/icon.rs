@@ -92,11 +92,14 @@ struct Canvas {
     size: u32,
     /// ARGB32, network byte order: bytes are A, R, G, B.
     data: Vec<u8>,
+    /// Paint only where something is already drawn, never more opaque than it: ink drawn
+    /// over the muted tile stays inside its rounded corners.
+    clip: bool,
 }
 
 impl Canvas {
     fn new(size: u32) -> Self {
-        Self { size, data: vec![0; (size * size * 4) as usize] }
+        Self { size, data: vec![0; (size * size * 4) as usize], clip: false }
     }
 
     fn put(&mut self, x: i32, y: i32, rgb: [u8; 3], alpha: u8) {
@@ -104,6 +107,7 @@ impl Canvas {
             return;
         }
         let i = ((y as u32 * self.size + x as u32) * 4) as usize;
+        let alpha = if self.clip { alpha.min(self.data[i]) } else { alpha };
         self.data[i..i + 4].copy_from_slice(&[alpha, rgb[0], rgb[1], rgb[2]]);
     }
 
@@ -179,6 +183,7 @@ pub fn render(size: u32, mic: Option<&Mic>, fg: [u8; 3]) -> Vec<u8> {
             let lay = Layout::new(size, glyphs.len());
             let ink = if m.muted {
                 c.tile(RED);
+                c.clip = true;
                 KNOCKOUT
             } else {
                 fg
@@ -307,6 +312,29 @@ mod tests {
             (0..s * s).filter(|i| rgb(d, s, i % s, i / s) == KNOCKOUT && alpha(d, s, i % s, i / s) == 0xff).count()
         };
         assert_eq!(ink(&muted), opaque_px(&rest, s));
+    }
+
+    #[test]
+    fn muted_ink_never_leaves_the_rounded_tile() {
+        // Knockout digits and the lock bar recolour the tile; they must not square off its
+        // corners or leave specks outside it (48 px is 22 px on a 2x display).
+        for s in SIZES {
+            let mut tile = Canvas::new(s);
+            tile.tile(RED);
+            for gain in 0..=100u8 {
+                for smart_lock in [false, true] {
+                    let d = render(s, Some(&Mic { muted: true, gain, smart_lock }), FG);
+                    for i in 0..s * s {
+                        let (x, y) = (i % s, i / s);
+                        assert_eq!(
+                            alpha(&d, s, x, y),
+                            alpha(&tile.data, s, x, y),
+                            "size {s} gain {gain} lock {smart_lock} at ({x},{y})"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]
