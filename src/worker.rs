@@ -2,6 +2,7 @@
 //! periodic re-read, command execution and hotplug recovery.
 
 use std::collections::VecDeque;
+use std::convert::Infallible;
 use std::io;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant};
@@ -21,7 +22,8 @@ const GAIN_STEP: i32 = 5;
 enum Fail {
     /// The device is gone or unresponsive; drop the session and rescan.
     Gone(io::Error),
-    /// The device answered with a HID++ error; keep the session.
+    /// The device answered with a HID++ error. Fails the request in flight; never ends the
+    /// session.
     Rejected(u8),
 }
 
@@ -124,40 +126,59 @@ impl<P: FnMut(Option<Mic>)> Worker<P> {
 
     /// Returns why the session ended.
     fn session(&mut self, s: &mut Session) -> Fail {
+        match self.serve(s) {
+            Ok(never) => match never {},
+            Err(e) => e,
+        }
+    }
+
+    /// Serve the session until the device is gone; only `Fail::Gone` gets out.
+    fn serve(&mut self, s: &mut Session) -> Result<Infallible, Fail> {
         let mut last_refresh = Instant::now();
         loop {
             // Drain everything pending so a burst of notifications costs one re-read.
             while let Ok(ev) = self.rx.try_recv() {
-                if let Err(e) = self.handle(s, ev) {
-                    return e;
-                }
+                self.absorb(s, ev)?;
             }
             while let Some(c) = s.backlog.pop_front() {
-                if let Err(e) = self.apply(s, c) {
-                    return e;
-                }
+                self.apply(s, c)?;
             }
             if s.dirty || last_refresh.elapsed() >= REFRESH {
                 last_refresh = Instant::now();
-                match self.refresh(s) {
-                    Ok(()) => {}
-                    Err(e @ Fail::Gone(_)) => return e,
-                    Err(e) => eprintln!("refresh: {}", e.describe()),
-                }
+                self.refresh_logged(s)?;
                 continue;
             }
             let wait = REFRESH.saturating_sub(last_refresh.elapsed());
             match self.rx.recv_timeout(wait) {
-                Ok(ev) => {
-                    if let Err(e) = self.handle(s, ev) {
-                        return e;
-                    }
-                }
+                Ok(ev) => self.absorb(s, ev)?,
                 Err(RecvTimeoutError::Timeout) => {}
                 Err(RecvTimeoutError::Disconnected) => {
-                    return Fail::Gone(io::Error::new(io::ErrorKind::BrokenPipe, "event channel closed"));
+                    return Err(io::Error::new(io::ErrorKind::BrokenPipe, "event channel closed").into());
                 }
             }
+        }
+    }
+
+    /// `handle` with no request in flight: an error frame nobody is waiting for (another
+    /// HID++ client sharing our sw id, say) is logged, not fatal.
+    fn absorb(&mut self, s: &mut Session, ev: Event) -> Result<(), Fail> {
+        match self.handle(s, ev) {
+            Err(e @ Fail::Rejected(_)) => {
+                eprintln!("unexpected HID++ error: {}", e.describe());
+                Ok(())
+            }
+            r => r.map(drop),
+        }
+    }
+
+    /// `refresh`, logging a rejected read instead of ending the session.
+    fn refresh_logged(&mut self, s: &mut Session) -> Result<(), Fail> {
+        match self.refresh(s) {
+            Err(e @ Fail::Rejected(_)) => {
+                eprintln!("refresh: {}", e.describe());
+                Ok(())
+            }
+            r => r,
         }
     }
 
@@ -169,13 +190,20 @@ impl<P: FnMut(Option<Mic>)> Worker<P> {
                 return Err(io::Error::new(io::ErrorKind::BrokenPipe, "hidraw read failed").into());
             }
             Event::Report { epoch, data } if epoch == s.epoch => {
-                if let Some(Msg::Error { code, .. }) = hidpp::decode(&data, hidpp::SW_WRITE) {
-                    eprintln!("write rejected: {} (0x{code:02x})", hidpp::error_name(code));
+                // Errors count only for our feature (or the root feature, index 0, while
+                // `s.index` is still 0 during discovery); other clients' errors are not ours.
+                match hidpp::decode(&data, hidpp::SW_WRITE) {
+                    Some(Msg::Error { feature, code }) if feature == s.index => {
+                        eprintln!("write rejected: {} (0x{code:02x})", hidpp::error_name(code));
+                    }
+                    _ => {}
                 }
                 match hidpp::decode(&data, hidpp::SW_READ) {
                     Some(Msg::Notify { feature, .. }) if feature == s.index => s.dirty = true,
-                    Some(Msg::Notify { .. }) => {}
-                    Some(Msg::Error { code, .. }) => return Err(Fail::Rejected(code)),
+                    Some(Msg::Error { feature, code }) if feature == s.index => {
+                        return Err(Fail::Rejected(code));
+                    }
+                    Some(Msg::Notify { .. } | Msg::Error { .. }) => {}
                     other => return Ok(other),
                 }
             }
