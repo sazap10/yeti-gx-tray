@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-02T16:15:27Z",
+  "title": "Design System: Yeti GX Tray",
+  "extensions": {
+    "colorMeta": {
+      "mute-red": {
+        "role": "primary",
+        "displayName": "Mute Red",
+        "canonical": "oklch(57% 0.195 27)",
+        "tonalRamp": [
+          "#210000",
+          "#4d0003",
+          "#7e0b10",
+          "#b60d18",
+          "#df423d",
+          "#fd756a",
+          "#fdb4ab",
+          "#fee9e6"
+        ]
+      },
+      "knockout": {
+        "role": "neutral",
+        "displayName": "Knockout Rose-White",
+        "canonical": "oklch(97% 0.011 31)",
+        "tonalRamp": [
+          "#100908",
+          "#2a2322",
+          "#48403e",
+          "#675f5d",
+          "#89807e",
+          "#aca3a1",
+          "#d0c7c5",
+          "#f6ecea"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Panel Ink",
+        "canonical": "oklch(44% 0.043 279)",
+        "tonalRamp": [
+          "#08081d",
+          "#21233a",
+          "#3d4059",
+          "#5c5f7a",
+          "#7c809c",
+          "#9fa3c0",
+          "#c3c7e6",
+          "#ebedff"
+        ]
+      },
+      "ink-fallback": {
+        "role": "neutral",
+        "displayName": "Fallback Ink",
+        "canonical": "oklch(95% 0.002 248)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#242526",
+          "#414243",
+          "#606162",
+          "#818283",
+          "#a4a5a6",
+          "#c8c9ca",
+          "#edeeef"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "gain-digits": {
+        "displayName": "Gain digits",
+        "purpose": "The gain number 0 to 100 in a 3x5 pixel font, scaled in whole pixels (22 px: 2x3 cells)."
+      }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [
+      {
+        "name": "pixmap-16",
+        "value": "16px"
+      },
+      {
+        "name": "pixmap-22",
+        "value": "22px"
+      },
+      {
+        "name": "pixmap-24",
+        "value": "24px"
+      },
+      {
+        "name": "pixmap-32",
+        "value": "32px"
+      },
+      {
+        "name": "pixmap-48",
+        "value": "48px"
+      },
+      {
+        "name": "pixmap-64",
+        "value": "64px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Resting icon",
+      "kind": "custom",
+      "refersTo": "icon-resting",
+      "description": "Unmuted: bare digits in the panel text colour, no tile. The quiet default.",
+      "html": "<span class=\"ds-icon ds-icon-rest\" title=\"Yeti GX: gain 100, unmuted, Smart Lock off\"><svg class=\"ds-icon-svg\" viewBox=\"0 0 22 22\" width=\"22\" height=\"22\" shape-rendering=\"crispEdges\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"3\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"4\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"4\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"4\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"5\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"5\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"5\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"6\" width=\"4\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"6\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"6\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"6\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"6\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"7\" width=\"4\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"7\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"7\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"7\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"7\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"8\" width=\"4\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"8\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"8\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"8\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"8\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"9\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"9\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"9\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"9\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"9\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"10\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"10\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"10\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"10\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"10\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"11\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"11\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"11\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"11\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"11\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"12\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"12\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"12\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"12\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"12\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"13\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"13\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"13\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"13\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"13\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"14\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"14\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"14\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"14\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"14\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"15\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"15\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"15\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"16\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"16\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"16\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"17\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"17\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"17\" width=\"6\" height=\"1\" fill=\"currentColor\"/></svg></span>",
+      "css": ".ds-icon{display:inline-block;line-height:0;color:var(--ink,#4c4f69)} .ds-icon svg{display:block}"
+    },
+    {
+      "name": "Resting icon with Smart Audio Lock",
+      "kind": "custom",
+      "refersTo": "icon-resting-locked",
+      "description": "Unmuted with Smart Audio Lock on: a bar under the digits. Digits do not move.",
+      "html": "<span class=\"ds-icon ds-icon-lock\" title=\"Yeti GX: gain 100, unmuted, Smart Lock on\"><svg class=\"ds-icon-svg\" viewBox=\"0 0 22 22\" width=\"22\" height=\"22\" shape-rendering=\"crispEdges\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"3\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"4\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"4\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"4\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"5\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"5\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"5\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"6\" width=\"4\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"6\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"6\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"6\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"6\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"7\" width=\"4\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"7\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"7\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"7\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"7\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"8\" width=\"4\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"8\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"8\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"8\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"8\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"9\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"9\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"9\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"9\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"9\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"10\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"10\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"10\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"10\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"10\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"11\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"11\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"11\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"11\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"11\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"12\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"12\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"12\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"12\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"12\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"13\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"13\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"13\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"13\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"13\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"3\" y=\"14\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"14\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"14\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"14\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"19\" y=\"14\" width=\"2\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"15\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"15\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"15\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"16\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"16\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"16\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"17\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"8\" y=\"17\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"15\" y=\"17\" width=\"6\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"19\" width=\"20\" height=\"1\" fill=\"currentColor\"/><rect x=\"1\" y=\"20\" width=\"20\" height=\"1\" fill=\"currentColor\"/></svg></span>",
+      "css": ".ds-icon{display:inline-block;line-height:0;color:var(--ink,#4c4f69)} .ds-icon svg{display:block}"
+    },
+    {
+      "name": "Muted icon",
+      "kind": "custom",
+      "refersTo": "icon-muted",
+      "description": "Muted: solid Mute Red tile, digits knocked out. The only loud state.",
+      "html": "<span class=\"ds-icon ds-icon-muted\" title=\"Yeti GX: gain 100, muted, Smart Lock off\"><svg class=\"ds-icon-svg\" viewBox=\"0 0 22 22\" width=\"22\" height=\"22\" shape-rendering=\"crispEdges\" aria-hidden=\"true\"><rect width=\"22\" height=\"22\" rx=\"4.84\" fill=\"var(--mute-red,#d03230)\"/><rect x=\"3\" y=\"3\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"3\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"3\" y=\"4\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"4\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"4\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"3\" y=\"5\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"5\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"5\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"1\" y=\"6\" width=\"4\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"6\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"12\" y=\"6\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"6\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"19\" y=\"6\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"1\" y=\"7\" width=\"4\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"7\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"12\" y=\"7\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"7\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"19\" y=\"7\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"1\" y=\"8\" width=\"4\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"8\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"12\" y=\"8\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"8\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"19\" y=\"8\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"3\" y=\"9\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"9\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"12\" y=\"9\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"9\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"19\" y=\"9\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"3\" y=\"10\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"10\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"12\" y=\"10\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"10\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"19\" y=\"10\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"3\" y=\"11\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"11\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"12\" y=\"11\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"11\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"19\" y=\"11\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"3\" y=\"12\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"12\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"12\" y=\"12\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"12\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"19\" y=\"12\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"3\" y=\"13\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"13\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"12\" y=\"13\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"13\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"19\" y=\"13\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"3\" y=\"14\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"14\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"12\" y=\"14\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"14\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"19\" y=\"14\" width=\"2\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"1\" y=\"15\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"15\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"15\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"1\" y=\"16\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"16\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"16\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"1\" y=\"17\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"8\" y=\"17\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/><rect x=\"15\" y=\"17\" width=\"6\" height=\"1\" fill=\"var(--knockout,#fdf3f1)\"/></svg></span>",
+      "css": ".ds-icon{display:inline-block;line-height:0;color:var(--ink,#4c4f69)} .ds-icon svg{display:block}"
+    },
+    {
+      "name": "Disconnected icon",
+      "kind": "custom",
+      "refersTo": "icon-disconnected",
+      "description": "Mic not found: two dimmed dashes, no tile.",
+      "html": "<span class=\"ds-icon ds-icon-gone\" title=\"Yeti GX: disconnected\"><svg class=\"ds-icon-svg\" viewBox=\"0 0 22 22\" width=\"22\" height=\"22\" shape-rendering=\"crispEdges\" aria-hidden=\"true\"><rect x=\"1\" y=\"9\" width=\"9\" height=\"1\" fill=\"currentColor\" fill-opacity=\"0.75\"/><rect x=\"11\" y=\"9\" width=\"9\" height=\"1\" fill=\"currentColor\" fill-opacity=\"0.75\"/><rect x=\"1\" y=\"10\" width=\"9\" height=\"1\" fill=\"currentColor\" fill-opacity=\"0.75\"/><rect x=\"11\" y=\"10\" width=\"9\" height=\"1\" fill=\"currentColor\" fill-opacity=\"0.75\"/><rect x=\"1\" y=\"11\" width=\"9\" height=\"1\" fill=\"currentColor\" fill-opacity=\"0.75\"/><rect x=\"11\" y=\"11\" width=\"9\" height=\"1\" fill=\"currentColor\" fill-opacity=\"0.75\"/></svg></span>",
+      "css": ".ds-icon{display:inline-block;line-height:0;color:var(--ink,#4c4f69)} .ds-icon svg{display:block}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Pilot Light",
+    "overview": "A pilot light is unremarkable until something is wrong. This icon is the same: at rest it is a few bare digits in the panel's own text colour, indistinguishable in spirit from the rest of the tray. The one loud thing in the system, a solid red tile, exists for the one state that needs attention: the mic is muted. Gain and mute carry equal weight, so the digits stay legible in every state and the red never covers them.\n\nThe system is glanceable, exact and native. It is read at 22 px beside other tray icons, so every pixel is deliberate: hard pixel edges, a 3x5 bitmap font scaled in whole pixels, and colour pulled from the user's Plasma colour scheme rather than invented. It explicitly rejects **loud, fully saturated colour on inactive/resting states**, and it never lets colour carry a state alone.",
+    "keyCharacteristics": [
+      "Bare digits at rest; a filled block only when muted.",
+      "Ink follows the Plasma colour scheme; the red and its knockout are the only fixed colours.",
+      "Every state is distinguishable without colour: bare digits, solid block, dimmed dashes, bar under the digits.",
+      "Flat, hard-edged, whole-pixel geometry. Anti-aliasing exists only on the tile's rounded corners."
+    ],
+    "rules": [
+      {
+        "name": "The Pilot Light Rule",
+        "body": "Mute Red appears only when the mic is muted. It is never used for gain, Smart Lock, errors or decoration. Its rarity is the signal.",
+        "section": "colors"
+      },
+      {
+        "name": "The Panel-Matched Ink Rule",
+        "body": "Resting ink is never hard-coded; it is the panel's own text colour. If the icon looks foreign next to its neighbours, the ink is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two-Pixel Rule",
+        "body": "From 22 px up, no stroke is thinner than 2 px. At 16 px three digits cannot fit wider than 1 px strokes; that is the accepted limit.",
+        "section": "typography"
+      },
+      {
+        "name": "The Equal Height Rule",
+        "body": "Digit height does not depend on how many digits there are. \"5\", \"55\" and \"100\" share a baseline and a top.",
+        "section": "typography"
+      },
+      {
+        "name": "The Solid-Block Rule",
+        "body": "Importance is a filled block, never a shadow, glow or outline. If a new state needs more emphasis than bare digits, it earns a tile; it does not earn an effect.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** draw the resting state as bare digits in the panel's text colour (Panel Ink); keep the tile for muted only.",
+      "**Do** convey every state by form as well as colour: bare digits, solid block, dimmed dashes, bar under the digits. Gain and mute carry equal weight.",
+      "**Do** keep strokes at least 2 px from 22 px up and digit height constant for one to three digits.",
+      "**Do** keep the Smart Lock bar row reserved so toggling the lock never moves the digits.",
+      "**Do** verify any new fixed colour at 3:1 against Breeze Light, Breeze Dark and Catppuccin Latte before shipping, and 4.5:1 for text-like ink on a tile.",
+      "**Do** pin the colour with `--fg #rrggbb` when the panel differs from the scheme's window colour."
+    ],
+    "donts": [
+      "**Don't** use loud, fully saturated colour on inactive/resting states. The unmuted icon has no tile and no accent.",
+      "**Don't** use Mute Red for anything but muted.",
+      "**Don't** strike through or overlay the digits to show a state; the gain must stay legible when muted.",
+      "**Don't** rely on colour alone to convey a state.",
+      "**Don't** add shadows, glows, outlines, gradients or animation to the icon.",
+      "**Don't** hard-code the ink colour or assume a dark or light panel.",
+      "**Don't** draw strokes thinner than 2 px at 22 px or above."
+    ]
+  }
+}

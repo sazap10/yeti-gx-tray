@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Yeti GX tray
+Comment=Logitech Yeti GX hardware gain, mute and Smart Audio Lock in the system tray
+Exec=yeti-gx-tray
+Icon=audio-input-microphone
+Terminal=false
+Categories=AudioVideo;Audio;
+X-KDE-autostart-after=panel
